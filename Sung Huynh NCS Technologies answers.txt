@@ -1,0 +1,83 @@
+Below are my answers to the coding challenge:
+
+
+1. Using AWS or another cloud provider, create and deploy a running instance of an LDAP server using a configuration management tool.
+
+
+>>>
+  Welcome to Ansible Tower!
+
+
+  Log into the web interface here:
+
+
+    https://ec2-54-152-99-17.compute-1.amazonaws.com/
+<<<
+> Created two AWS servers (test and prod) from Ansible trial demo. (https://console.aws.amazon.com/ec2/home?region=us-east-1#LaunchInstanceWizard:ami=ami-a013f9cd)
+> Created a new key pair for each AWS servers. Note that ansible is already installed with the above website link.
+> sudo apt-get install slapd ldap-utils
+> sudo dpkg-reconfigure slapd
+
+
+
+
+2. In the created instance, add a group named “techops_dba” to /etc/security/access.conf and /etc/sudoers. This may be done before or after the instance starts.
+> /etc/security/access.conf 
++ : @techops_dba ubuntu : ALL
+> /etc/sudoers
+sudo groupadd techops_dba
+sudo visudo /etc/sudoers
+I added the following to /etc/sudoes:
+%techops_dba ALL=(ALL:ALL) ALL
+usermod -a -G techops_dba ubuntu
+
+
+
+
+3. What is the NTP stratum of the created host? What is an acceptable load average threshold for the host?
+> sudo apt-get install ntp
+ubuntu@ip-172-31-9-91:~$ ntpq -p
+     remote           refid      st t when poll reach   delay   offset  jitter
+==============================================================================
+*linode227395.st 192.5.41.40      2 u   84  256  377    7.666   -2.247   2.799
++hydrogen.consta 209.51.161.238   2 u   27  256  377    7.426   -1.864   0.469
++origin.towfowi. 204.9.54.119     2 u   57  256  377   73.764   -2.989   0.516
+-216.152.240.220 164.67.62.194    2 u  100  256  377   60.426   -0.650   5.360
+-juniperberry.ca 212.51.144.44    2 u  260  256  377   80.447   -4.630   0.675
+
+
+
+
+4. Instantiate a second host and implement security so that clients are only able to access the first host from the second host. Use SSH for connectivity. This is commonly referred to as a “jump box” configuration.
+
+>>>
+  Welcome to Ansible Tower!
+
+
+  Log into the web interface here:
+
+
+    https://ec2-52-201-240-252.compute-1.amazonaws.com/
+<<<
+
+
+> SSH Configuration File (~/.ssh/config)
+Host ec2-54-152-99-17.compute-1.amazonaws.com
+  ProxyCommand ssh -W %h:%p ec2-52-201-240-252.compute-1.amazonaws.com
+  IdentityFile ~/.ssh/KeyPairName100.pem
+
+
+Host ec2-52-201-240-252.compute-1.amazonaws.com
+  Hostname ec2-52-201-240-252.compute-1.amazonaws.com
+  User ubuntu
+  IdentityFile ~/.ssh/KeyPairName100.pem
+  ForwardAgent yes
+  ControlMaster auto
+  ControlPath ~/.ssh/ansible-%r@%h:%p
+  ControlPersist 5m
+
+
+> Anible Configuration (ansible.cfg)
+[ssh_connection]
+ssh_args = -F ./ssh.cfg -o ControlMaster=auto -o ControlPersist=30m
+control_path = ~/.ssh/ansible-%%r@%%h:%%p
