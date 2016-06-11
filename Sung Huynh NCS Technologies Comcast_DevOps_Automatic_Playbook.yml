@@ -1,0 +1,58 @@
+---
+- name: Comcast DevOps Automatic Playbook
+  hosts: all
+  sudo: true
+
+  tasks:
+    - name: Verify correctness of the LDAP server of step 1
+      command: dpkg-query -l slapd
+      register: slapd_is_installed
+      failed_when: slapd_is_installed.rc > 1
+      changed_when: no
+
+    - name: Verify correctness of the LDAP server of step 1
+      command: dpkg-query -l ldap-utils
+      register: ldaputils_is_installed
+      failed_when: ldaputils_is_installed.rc > 1
+      changed_when: no
+
+
+
+    - name: Verify correctness of the configuration of step 2
+      shell: grep 'techops_dba' /etc/security/access.conf
+      register: techops_dba_access
+
+    - name: Print if we find techops_dba
+      debug: msg="We found techops_dba in access.conf"
+      when: techops_dba_access.stdout
+
+    - name: Verify correctness of the configuration of step 2
+      shell: grep 'techops_dba' /etc/sudoers
+      register: techops_dba_sudoers
+
+    - name: Print if we find techops_dba
+      debug: msg="We found techops_dba in sudoers"
+      when: techops_dba_sudoers.stdout
+
+
+
+    - name: Verify correctness of the results of the NTP findings of step 3
+      command: dpkg-query -l ntp
+      register: ntp_is_installed
+      failed_when: ntp_is_installed.rc > 1
+      changed_when: no
+
+    - name: Ensure ntp is configured
+      template: src=ntp.conf.j2 dest=/etc/ntp.conf
+      notify:
+      - restart ntpd
+
+    - name: Ensure ntpd is running and enabled
+      service: name=ntpd state=running enabled=yes
+
+
+
+    - name: Verify correctness of the security restrictions of step 4
+      local_action: shell ssh -i "KeyPairName1.pem" ubuntu@ec2-52-201-240-252.compute-1.amazonaws.com "echo success"
+      register: ssh_connection
+      when: ssh_connection.stdout.find("success") != -1
